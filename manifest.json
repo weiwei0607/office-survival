@@ -1,0 +1,24 @@
+{
+  "name": "職場生存工具 Office Survival",
+  "short_name": "職場生存",
+  "description": "情緒防護罩、黑話Bingo、偽裝聊天、下班結界、假通知等職場求生工具",
+  "start_url": "/office-survival/index.html",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%236c5ce7' width='192' height='192' rx='32'/%3E%3Ctext x='96' y='130' font-size='120' text-anchor='middle'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%236c5ce7' width='512' height='512' rx='64'/%3E%3Ctext x='256' y='350' font-size='320' text-anchor='middle'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "zh-TW"
+}

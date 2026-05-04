@@ -1,0 +1,13 @@
+{
+  "name": "office-survival-server",
+  "version": "1.0.0",
+  "description": "職場生存工具 - 多人聊天後端",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.5"
+  }
+}
