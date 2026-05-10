@@ -4,6 +4,9 @@ build/
 .DS_Store
 *.log
 .env
-.env.local
+.env.*
+!.env.example
 .next/
 .cache/
+test-results/
+test-screenshots/
