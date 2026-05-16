@@ -493,10 +493,11 @@ const ChatModule = {
         
         // 本地規則加密
         let encrypted = text;
-        const sortedKeys = Object.keys(this.encryptMap).sort((a, b) => b.length - a.length);
+        const theme = this.getCurrentTheme();
+        const sortedKeys = Object.keys(theme.map).sort((a, b) => b.length - a.length);
         
         sortedKeys.forEach(key => {
-            encrypted = encrypted.split(key).join(this.encryptMap[key]);
+            encrypted = encrypted.split(key).join(theme.map[key]);
         });
         
         // 加專業包裝
@@ -596,7 +597,7 @@ const ChatModule = {
         // 第二步：判斷處理方式
         const hasReplacement = encrypted !== text;
         const isShort = text.length <= 8;
-        const isSimpleConfirm = /^(好|可以|行|沒問題|OK|ok|嗯|哦|喔|對|是|有|知道了|了解|收到|明白|清楚|懂)$/.test(text.replace(/[啊呢吧嗎嘛的得地了~!！?？\s]/g, ''));
+        const isSimpleConfirm = /^(好|可以|行|沒問題|OK|ok|嗯|哦|喔|對|是|有|知道了|了解|收到|明白|清楚|懂)$/.test(text.replace(/[啊呢吧嗎嗎的得地了~!！?？\s]/g, ''));
         
         if (isSimpleConfirm && hasReplacement) {
             // 簡短確認句：只做詞替換，不加包裝，保持自然

@@ -344,22 +344,47 @@ const FirebaseClient = {
     renderOnlineUsers(users) {
         const container = document.getElementById('online-users-list');
         if (!container) return;
-        
+
         if (users.length === 0) {
             container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:0.75rem;padding:0.5rem">暫無其他用戶</div>';
             return;
         }
-        
-        container.innerHTML = users.map(u => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem;background:var(--bg);border-radius:8px;margin-bottom:0.3rem">
-                <div style="display:flex;align-items:center;gap:0.5rem">
-                    <div style="width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite"></div>
-                    <span style="font-size:0.8rem">${u.codeName}</span>
-                    <span style="font-size:0.65rem;color:var(--text-muted)">${u.shortUid}</span>
-                </div>
-                <button class="btn-text" style="font-size:0.7rem;color:var(--primary)" onclick="FirebaseClient.startPrivateChat('${u.uid}', '${u.codeName}', '${u.theme}')">私聊</button>
-            </div>
-        `).join('');
+
+        container.innerHTML = '';
+        users.forEach(u => {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0.4rem;background:var(--bg);border-radius:8px;margin-bottom:0.3rem';
+
+            const info = document.createElement('div');
+            info.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+
+            const dot = document.createElement('div');
+            dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite';
+
+            const nameEl = document.createElement('span');
+            nameEl.style.fontSize = '0.8rem';
+            nameEl.textContent = u.codeName;
+
+            const uidEl = document.createElement('span');
+            uidEl.style.cssText = 'font-size:0.65rem;color:var(--text-muted)';
+            uidEl.textContent = u.shortUid;
+
+            info.appendChild(dot);
+            info.appendChild(nameEl);
+            info.appendChild(uidEl);
+
+            const btn = document.createElement('button');
+            btn.className = 'btn-text';
+            btn.style.cssText = 'font-size:0.7rem;color:var(--primary)';
+            btn.textContent = '私聊';
+            btn.addEventListener('click', () => {
+                FirebaseClient.startPrivateChat(u.uid, u.codeName, u.theme);
+            });
+
+            item.appendChild(info);
+            item.appendChild(btn);
+            container.appendChild(item);
+        });
     },
     
     startPrivateChat(otherUid, codeName, theme) {
