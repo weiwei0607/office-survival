@@ -9,13 +9,24 @@ const path = require('path');
 const { Server } = require('socket.io');
 
 const PORT = process.env.PORT || 9999;
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost';
+const BASE_DIR = path.resolve(path.join(__dirname, '..'));
+const MAX_MSG_LENGTH = 2000;
+const MAX_ROOM_MESSAGES = 200;
 
 // 靜態檔案伺服器（同時服務前端）
 const server = http.createServer((req, res) => {
-    let filePath = req.url === '/' ? '/index.html' : req.url;
-    filePath = path.join(__dirname, '..', filePath);
-    
-    const ext = path.extname(filePath);
+    let urlPath = req.url === '/' ? '/index.html' : req.url;
+    urlPath = urlPath.split('?')[0];
+    const resolved = path.resolve(path.join(BASE_DIR, urlPath));
+
+    if (resolved !== BASE_DIR && !resolved.startsWith(BASE_DIR + path.sep)) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+    }
+
+    const ext = path.extname(resolved);
     const mimeTypes = {
         '.html': 'text/html',
         '.js': 'text/javascript',
@@ -25,8 +36,8 @@ const server = http.createServer((req, res) => {
         '.jpg': 'image/jpeg',
         '.svg': 'image/svg+xml'
     };
-    
-    fs.readFile(filePath, (err, data) => {
+
+    fs.readFile(resolved, (err, data) => {
         if (err) {
             res.writeHead(404);
             res.end('Not Found');
@@ -39,7 +50,7 @@ const server = http.createServer((req, res) => {
 
 // Socket.io
 const io = new Server(server, {
-    cors: { origin: '*' }
+    cors: { origin: ALLOWED_ORIGIN }
 });
 
 // 資料存儲
@@ -57,26 +68,26 @@ function generateRandomName() {
     const surnames = ['林', '陳', '黃', '張', '李', '王', '吳', '劉', '蔡', '楊', '許', '鄭', '謝', '洪', '郭'];
     const maleNames = ['智', '明', '傑', '宏', '偉', '恩', '軒', '睿', '宇', '豪', '翔', '凱', '文', '廷', '佑'];
     const femaleNames = ['美', '婷', '君', '慧', '芬', '涵', '宜', '晴', '萱', '妤', '芸', '婕', '欣', '怡', '珊'];
-    
+
     const isMale = Math.random() > 0.5;
     const surname = surnames[Math.floor(Math.random() * surnames.length)];
-    const name = isMale 
+    const name = isMale
         ? maleNames[Math.floor(Math.random() * maleNames.length)]
         : femaleNames[Math.floor(Math.random() * femaleNames.length)];
-    
+
     const styles = [
         surname + name,
         '阿' + name,
         '小' + name,
         name + (isMale ? '哥' : '姐')
     ];
-    
+
     return styles[Math.floor(Math.random() * styles.length)];
 }
 
 io.on('connection', (socket) => {
     console.log('用戶連接:', socket.id);
-    
+
     // 用戶登入（設定代號）
     socket.on('login', (data) => {
         const codeName = data.codeName || generateRandomName();
@@ -87,22 +98,22 @@ io.on('connection', (socket) => {
             socketId: socket.id,
             roomId: null
         };
-        
+
         users.set(socket.id, user);
-        socket.emit('loginSuccess', { 
-            userId: user.id, 
+        socket.emit('loginSuccess', {
+            userId: user.id,
             codeName: user.codeName,
-            publicId: user.id // 用於添加好友的公開ID
+            publicId: user.id
         });
-        
+
         console.log(`用戶登入: ${codeName} (${user.id})`);
     });
-    
+
     // 創建房間（群組）
     socket.on('createRoom', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
-        
+
         const roomId = generateId();
         const room = {
             id: roomId,
@@ -112,59 +123,63 @@ io.on('connection', (socket) => {
             messages: [],
             theme: data.theme || 'office'
         };
-        
+
         rooms.set(roomId, room);
         user.roomId = roomId;
         socket.join(roomId);
-        
+
         socket.emit('roomCreated', { roomId, room });
         console.log(`房間創建: ${room.name} (${roomId})`);
     });
-    
+
     // 加入房間
     socket.on('joinRoom', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
-        
+
         const roomId = data.roomId;
         const room = rooms.get(roomId);
-        
+
         if (!room) {
             socket.emit('error', { message: '房間不存在' });
             return;
         }
-        
+
         user.roomId = roomId;
         socket.join(roomId);
-        
+
         if (!room.members.includes(user.codeName)) {
             room.members.push(user.codeName);
         }
-        
-        // 發送歷史訊息
-        socket.emit('roomJoined', { 
-            roomId, 
+
+        socket.emit('roomJoined', {
+            roomId,
             room,
             history: room.messages.slice(-50)
         });
-        
-        // 通知其他成員
+
         socket.to(roomId).emit('memberJoined', {
             codeName: user.codeName,
             members: room.members
         });
-        
+
         console.log(`${user.codeName} 加入房間 ${roomId}`);
     });
-    
+
     // 發送訊息（群組）
     socket.on('sendMessage', (data) => {
         const user = users.get(socket.id);
         if (!user || !user.roomId) return;
-        
+
         const room = rooms.get(user.roomId);
         if (!room) return;
-        
+
+        if (!data.text || typeof data.text !== 'string') return;
+        if (data.text.length > MAX_MSG_LENGTH) {
+            socket.emit('error', { message: '訊息過長' });
+            return;
+        }
+
         const msg = {
             id: generateId(),
             text: data.text,
@@ -174,21 +189,22 @@ io.on('connection', (socket) => {
             time: new Date().toISOString(),
             mode: data.mode || 'normal'
         };
-        
+
         room.messages.push(msg);
-        
-        // 廣播給房間所有人
+        if (room.messages.length > MAX_ROOM_MESSAGES) {
+            room.messages = room.messages.slice(-MAX_ROOM_MESSAGES);
+        }
+
         io.to(user.roomId).emit('newMessage', msg);
-        
+
         console.log(`${user.codeName}: ${msg.text.substring(0, 30)}`);
     });
-    
+
     // 私聊：添加好友（透過公開ID）
     socket.on('addFriend', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
-        
-        // 查找對方
+
         let targetUser = null;
         for (const [sid, u] of users) {
             if (u.id === data.friendId || u.codeName === data.friendCodeName) {
@@ -196,36 +212,33 @@ io.on('connection', (socket) => {
                 break;
             }
         }
-        
+
         if (!targetUser) {
             socket.emit('error', { message: '找不到該用戶，對方可能已離線' });
             return;
         }
-        
+
         if (targetUser.codeName === user.codeName) {
             socket.emit('error', { message: '不能加自己為好友' });
             return;
         }
-        
-        // 建立雙向好友關係
+
         if (!friendships.has(user.codeName)) {
             friendships.set(user.codeName, new Set());
         }
         if (!friendships.has(targetUser.codeName)) {
             friendships.set(targetUser.codeName, new Set());
         }
-        
+
         friendships.get(user.codeName).add(targetUser.codeName);
         friendships.get(targetUser.codeName).add(user.codeName);
-        
-        // 通知雙方
+
         socket.emit('friendAdded', {
             codeName: targetUser.codeName,
             realName: targetUser.realName,
             publicId: targetUser.id
         });
-        
-        // 如果對方在線，也通知對方
+
         const targetSocket = io.sockets.sockets.get(targetUser.socketId);
         if (targetSocket) {
             targetSocket.emit('friendAdded', {
@@ -234,20 +247,19 @@ io.on('connection', (socket) => {
                 publicId: user.id
             });
         }
-        
+
         console.log(`${user.codeName} 添加 ${targetUser.codeName} 為好友`);
     });
-    
+
     // 獲取好友列表
     socket.on('getFriends', () => {
         const user = users.get(socket.id);
         if (!user) return;
-        
+
         const myFriends = friendships.get(user.codeName) || new Set();
         const friendList = [];
-        
+
         for (const friendCodeName of myFriends) {
-            // 查找好友是否在線
             let isOnline = false;
             let friendId = null;
             for (const [sid, u] of users) {
@@ -257,22 +269,22 @@ io.on('connection', (socket) => {
                     break;
                 }
             }
-            
+
             friendList.push({
                 codeName: friendCodeName,
                 isOnline: isOnline,
                 publicId: friendId
             });
         }
-        
+
         socket.emit('friendList', friendList);
     });
-    
+
     // 獲取在線用戶列表（公開的）
     socket.on('getOnlineUsers', () => {
         const user = users.get(socket.id);
         if (!user) return;
-        
+
         const onlineUsers = [];
         for (const [sid, u] of users) {
             if (u.codeName !== user.codeName) {
@@ -282,16 +294,21 @@ io.on('connection', (socket) => {
                 });
             }
         }
-        
+
         socket.emit('onlineUsers', onlineUsers);
     });
-    
+
     // 私聊發送訊息
     socket.on('sendPrivateMessage', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
-        
-        // 查找對方 socket
+
+        if (!data.text || typeof data.text !== 'string') return;
+        if (data.text.length > MAX_MSG_LENGTH) {
+            socket.emit('error', { message: '訊息過長' });
+            return;
+        }
+
         let targetSocketId = null;
         for (const [sid, u] of users) {
             if (u.codeName === data.to) {
@@ -299,7 +316,7 @@ io.on('connection', (socket) => {
                 break;
             }
         }
-        
+
         const msg = {
             id: generateId(),
             text: data.text,
@@ -310,25 +327,22 @@ io.on('connection', (socket) => {
             time: new Date().toISOString(),
             mode: data.mode || 'normal'
         };
-        
-        // 發送給自己（確認送達）
+
         socket.emit('privateMessage', msg);
-        
-        // 發送給對方
+
         if (targetSocketId) {
             io.to(targetSocketId).emit('privateMessage', msg);
         }
-        
+
         console.log(`[私聊] ${user.codeName} -> ${data.to}: ${msg.text.substring(0, 30)}`);
     });
-    
+
     // 斷線處理
     socket.on('disconnect', () => {
         const user = users.get(socket.id);
         if (user) {
             console.log(`用戶離線: ${user.codeName}`);
-            
-            // 通知房間成員
+
             if (user.roomId) {
                 const room = rooms.get(user.roomId);
                 if (room) {
@@ -338,14 +352,13 @@ io.on('connection', (socket) => {
                     });
                 }
             }
-            
-            // 延遲刪除（讓對方有時間重連）
+
             setTimeout(() => {
                 const current = users.get(socket.id);
                 if (current && current.socketId === socket.id) {
                     users.delete(socket.id);
                 }
-            }, 30000); // 30秒後刪除
+            }, 30000);
         }
     });
 });
