@@ -72,20 +72,32 @@ const BoundaryModule = {
         }
     },
     
+    _taipeiParts(d) {
+        const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', weekday: 'short', hour: 'numeric', minute: 'numeric', day: 'numeric', hour12: false });
+        const p = Object.fromEntries(fmt.formatToParts(d).map(({ type, value }) => [type, value]));
+        return {
+            day: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(p.weekday),
+            hours: Number(p.hour) % 24,
+            minutes: Number(p.minute),
+            date: Number(p.day),
+        };
+    },
+
     shouldBlock() {
         if (!this.settings.enabled) return false;
-        
+
         const now = new Date();
-        
+        const tp = this._taipeiParts(now);
+
         // 檢查是否在工作日
-        const day = now.getDay(); // 0=週日, 1=週一...
+        const day = tp.day; // 0=週日, 1=週一...
         if (!this.settings.workDays.includes(day)) return false; // 週末不阻斷
-        
+
         // 檢查是否在暫停期間
         if (this.snoozeUntil && now < this.snoozeUntil) return false;
-        
+
         // 檢查時間
-        const current = now.getHours() * 60 + now.getMinutes();
+        const current = tp.hours * 60 + tp.minutes;
         const [startH, startM] = this.settings.startTime.split(':').map(Number);
         const [endH, endM] = this.settings.endTime.split(':').map(Number);
         const start = startH * 60 + startM;
@@ -120,7 +132,7 @@ const BoundaryModule = {
         setInterval(() => {
             const timeEl = document.getElementById('boundary-time');
             if (timeEl && this.isOverlayActive) {
-                timeEl.textContent = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                timeEl.textContent = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Taipei' });
             }
         }, 1000);
     },
@@ -133,11 +145,11 @@ const BoundaryModule = {
         this.isOverlayActive = true;
         
         if (timeEl) {
-            timeEl.textContent = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            timeEl.textContent = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Taipei' });
         }
         
         // 更新阻斷統計
-        if (!this.stats.lastTrigger || new Date(this.stats.lastTrigger).getDate() !== new Date().getDate()) {
+        if (!this.stats.lastTrigger || this._taipeiParts(new Date(this.stats.lastTrigger)).date !== this._taipeiParts(new Date()).date) {
             this.stats.blocked++;
             this.stats.savedHours += 8;
             this.stats.lastTrigger = new Date().toISOString();
