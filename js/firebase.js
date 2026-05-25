@@ -6,21 +6,22 @@
  * 1. 去 https://console.firebase.google.com 創建專案
  * 2. 啟用 Realtime Database + Authentication
  * 3. 在 Authentication → Sign-in method 啟用「Google」
- * 4. 複製配置貼到下方 firebaseConfig
+ * 4. 複製配置到 js/config.js（參考 js/config.example.js）
  * 5. 部署到 Firebase Hosting 或 Netlify
  */
 
 // ============================================
-// 🔧 請填入你的 Firebase 配置（從 Firebase Console 複製）
+// 🔧 Firebase 配置從 js/config.js 載入（window.APP_CONFIG）
 // ============================================
+const _cfg = (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.firebase) || {};
 const firebaseConfig = {
-    apiKey: "AIzaSyDjGZCq0J3uehh8kZqGk1XZCw0_pvT90os",
-    authDomain: "space-clear-app.firebaseapp.com",
-    databaseURL: "https://space-clear-app-default-rtdb.firebaseio.com",
-    projectId: "space-clear-app",
-    storageBucket: "space-clear-app.firebasestorage.app",
-    messagingSenderId: "815296228640",
-    appId: "1:815296228640:web:4f321ba84cd629ec82fb45"
+    apiKey: _cfg.apiKey || "",
+    authDomain: _cfg.authDomain || "",
+    databaseURL: _cfg.databaseURL || "",
+    projectId: _cfg.projectId || "",
+    storageBucket: _cfg.storageBucket || "",
+    messagingSenderId: _cfg.messagingSenderId || "",
+    appId: _cfg.appId || ""
 };
 
 // 模擬模式：如果沒有配置，啟用本地模擬
@@ -866,10 +867,10 @@ const FirebaseClient = {
                 </div>
                 
                 <div style="margin-bottom:1rem">
-                    <div style="font-weight:600;margin-bottom:0.3rem">4. 複製設定到 firebase.js</div>
+                    <div style="font-weight:600;margin-bottom:0.3rem">4. 複製設定到 config.js</div>
                     <div style="font-size:0.8rem;color:var(--text-muted)">
                         點「⚙️ 專案設定」→ 捲到「你的應用程式」→ 複製 firebaseConfig<br>
-                        貼到 <code>js/firebase.js</code> 檔案最上面的 firebaseConfig
+                        複製 <code>js/config.example.js</code> 為 <code>js/config.js</code> 並填入值
                     </div>
                 </div>
                 
