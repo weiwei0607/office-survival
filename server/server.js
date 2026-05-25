@@ -9,10 +9,10 @@ const path = require('path');
 const { Server } = require('socket.io');
 
 const PORT = process.env.PORT || 9999;
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost';
 const BASE_DIR = path.resolve(path.join(__dirname, '..'));
 const MAX_MSG_LENGTH = 2000;
-const MAX_ROOM_MESSAGES = 200;
+const MAX_CODENAME_LENGTH = 50;
+const MAX_ROOM_MESSAGES = 500;
 
 // 靜態檔案伺服器（同時服務前端）
 const server = http.createServer((req, res) => {
@@ -20,7 +20,10 @@ const server = http.createServer((req, res) => {
     urlPath = urlPath.split('?')[0];
     const resolved = path.resolve(path.join(BASE_DIR, urlPath));
 
-    if (resolved !== BASE_DIR && !resolved.startsWith(BASE_DIR + path.sep)) {
+    // Path traversal protection
+    const rootDir = path.resolve(__dirname, '..');
+    const resolvedPath = path.resolve(resolved);
+    if (!resolvedPath.startsWith(rootDir + path.sep) && resolvedPath !== rootDir) {
         res.writeHead(403);
         res.end('Forbidden');
         return;
@@ -50,7 +53,10 @@ const server = http.createServer((req, res) => {
 
 // Socket.io
 const io = new Server(server, {
-    cors: { origin: ALLOWED_ORIGIN }
+    cors: {
+        origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
+        methods: ['GET', 'POST']
+    }
 });
 
 // 資料存儲
@@ -90,6 +96,7 @@ io.on('connection', (socket) => {
 
     // 用戶登入（設定代號）
     socket.on('login', (data) => {
+        if (typeof data.codeName !== 'string' || data.codeName.length > MAX_CODENAME_LENGTH) return;
         const codeName = data.codeName || generateRandomName();
         const user = {
             id: generateId(),
@@ -168,17 +175,14 @@ io.on('connection', (socket) => {
 
     // 發送訊息（群組）
     socket.on('sendMessage', (data) => {
+        if (typeof data.text !== 'string' || data.text.length > MAX_MSG_LENGTH) return;
+        if (data.displayText !== undefined && (typeof data.displayText !== 'string' || data.displayText.length > MAX_MSG_LENGTH)) return;
+
         const user = users.get(socket.id);
         if (!user || !user.roomId) return;
 
         const room = rooms.get(user.roomId);
         if (!room) return;
-
-        if (!data.text || typeof data.text !== 'string') return;
-        if (data.text.length > MAX_MSG_LENGTH) {
-            socket.emit('error', { message: '訊息過長' });
-            return;
-        }
 
         const msg = {
             id: generateId(),
@@ -191,9 +195,7 @@ io.on('connection', (socket) => {
         };
 
         room.messages.push(msg);
-        if (room.messages.length > MAX_ROOM_MESSAGES) {
-            room.messages = room.messages.slice(-MAX_ROOM_MESSAGES);
-        }
+        if (room.messages.length > MAX_ROOM_MESSAGES) room.messages.shift();
 
         io.to(user.roomId).emit('newMessage', msg);
 
@@ -308,6 +310,7 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: '訊息過長' });
             return;
         }
+        if (data.displayText !== undefined && (typeof data.displayText !== 'string' || data.displayText.length > MAX_MSG_LENGTH)) return;
 
         let targetSocketId = null;
         for (const [sid, u] of users) {
