@@ -26,6 +26,11 @@ const firebaseConfig = {
 // 模擬模式：如果沒有配置，啟用本地模擬
 const USE_MOCK = !firebaseConfig.apiKey;
 
+// Escape user-supplied values for use inside HTML attribute strings
+function escapeAttr(str) {
+    return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 const FirebaseClient = {
     app: null,
     db: null,
@@ -726,19 +731,23 @@ const FirebaseClient = {
             padding: 2rem;
             animation: fadeIn 0.3s ease;
         `;
+
+        const safeUid = escapeAttr(uid);
+        const safeCodeName = escapeAttr(codeName);
+        const safeTheme = escapeAttr(theme);
         
         overlay.innerHTML = `
             <div style="background:var(--bg-card);border-radius:var(--radius);padding:1.5rem;max-width:300px;width:100%;border:1px solid var(--border);text-align:center">
                 <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));margin:0 auto 1rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem">
                     ${FriendsModule.getThemeIcon(theme)}
                 </div>
-                <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.3rem">${codeName}</div>
+                <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.3rem">${safeCodeName}</div>
                 <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">${isOnline ? '🟢 上線中' : '⚪ 離線'}</div>
                 <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:1rem">主題：${FriendsModule.getThemeName(theme)}</div>
                 
                 <div style="display:flex;gap:0.5rem">
                     <button class="btn-secondary" style="flex:1" onclick="this.closest('.fixed-overlay').remove()">取消</button>
-                    <button class="btn-primary" style="flex:1" onclick="FirebaseClient.confirmAddFriend('${uid}', '${codeName}', '${theme}')">添加好友</button>
+                    <button class="btn-primary" style="flex:1" onclick="FirebaseClient.confirmAddFriend('${safeUid}', '${safeCodeName}', '${safeTheme}')">添加好友</button>
                 </div>
             </div>
         `;
