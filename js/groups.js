@@ -21,11 +21,18 @@ const GroupsModule = {
         this.loadGroups();
     },
     
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
+    },
+
     loadGroups() {
         const saved = localStorage.getItem('chat_groups');
         if (saved) {
-            this.groups = JSON.parse(saved);
-        } else {
+            try { this.groups = JSON.parse(saved); } catch { localStorage.removeItem('chat_groups'); }
+        }
+        if (!this.groups.length) {
             // 預設群組
             this.groups = [
                 {
@@ -60,6 +67,7 @@ const GroupsModule = {
             this.saveGroups();
         }
     },
+
     
     saveGroups() {
         localStorage.setItem('chat_groups', JSON.stringify(this.groups));
@@ -130,11 +138,11 @@ const GroupsModule = {
             groupsHtml = `
                 <div style="display:flex;gap:0.4rem;overflow-x:auto;padding-bottom:0.3rem">
                     ${this.groups.map(g => `
-                        <div class="group-avatar ${currentGroup?.id === g.id ? 'active' : ''}" 
-                             onclick="GroupsModule.selectGroup(${g.id})"
+                        <div class="group-avatar ${currentGroup?.id === g.id ? 'active' : ''}"
+                             onclick="GroupsModule.selectGroup(${Number(g.id)})"
                              style="flex-shrink:0;width:70px;text-align:center;cursor:pointer;padding:0.4rem;border-radius:var(--radius-sm);${currentGroup?.id === g.id ? 'background:rgba(108,92,231,0.2);border:1px solid var(--primary)' : 'border:1px solid transparent'}">
                             <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--primary),var(--secondary));margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:1.2rem">👥</div>
-                            <div style="font-size:0.65rem;margin-top:0.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.name}</div>
+                            <div style="font-size:0.65rem;margin-top:0.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.escapeHtml(g.name)}</div>
                             <div style="font-size:0.6rem;color:var(--text-muted)">${g.members.length + 1}人</div>
                         </div>
                     `).join('')}
@@ -162,8 +170,8 @@ const GroupsModule = {
         const noteEl = document.getElementById('chat-friend-note');
         if (titleEl) {
             titleEl.innerHTML = `
-                <span style="font-size:1rem">👥 ${group.name}</span>
-                <span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.5rem">${this.getThemeName(group.theme)}</span>
+                <span style="font-size:1rem">👥 ${this.escapeHtml(group.name)}</span>
+                <span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.5rem">${this.escapeHtml(this.getThemeName(group.theme))}</span>
             `;
         }
         if (noteEl) {

@@ -37,11 +37,14 @@ const FakeNotifyModule = {
     },
     
     loadData() {
-        const schedules = localStorage.getItem('fake_notify_schedules');
-        if (schedules) this.schedules = JSON.parse(schedules);
-        
-        const history = localStorage.getItem('fake_notify_history');
-        if (history) this.history = JSON.parse(history);
+        try {
+            const schedules = localStorage.getItem('fake_notify_schedules');
+            if (schedules) this.schedules = JSON.parse(schedules);
+        } catch { localStorage.removeItem('fake_notify_schedules'); }
+        try {
+            const history = localStorage.getItem('fake_notify_history');
+            if (history) this.history = JSON.parse(history);
+        } catch { localStorage.removeItem('fake_notify_history'); }
     },
     
     saveData() {
@@ -314,10 +317,10 @@ const FakeNotifyModule = {
         container.innerHTML = activeSchedules.map(s => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:0.4rem">
                 <div style="flex:1;min-width:0">
-                    <div style="font-size:0.85rem;font-weight:600">${s.time}</div>
-                    <div style="font-size:0.75rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.title}</div>
+                    <div style="font-size:0.85rem;font-weight:600">${this.escapeHtml(s.time)}</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.escapeHtml(s.title)}</div>
                 </div>
-                <button class="btn-text" onclick="FakeNotifyModule.removeSchedule(${s.id})" style="color:var(--danger);flex-shrink:0">刪除</button>
+                <button class="btn-text" onclick="FakeNotifyModule.removeSchedule(${Number(s.id)})" style="color:var(--danger);flex-shrink:0">刪除</button>
             </div>
         `).join('');
     },
@@ -334,14 +337,15 @@ const FakeNotifyModule = {
         container.innerHTML = this.history.slice(-10).reverse().map(h => {
             const time = new Date(h.time);
             const timeStr = `${time.getHours().toString().padStart(2,'0')}:${time.getMinutes().toString().padStart(2,'0')}`;
+            const shortMsg = h.realMsg.substring(0, 20) + (h.realMsg.length > 20 ? '...' : '');
             return `
                 <div style="padding:0.5rem;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:0.4rem;font-size:0.8rem">
                     <div style="display:flex;justify-content:space-between">
                         <span style="color:var(--text-muted)">${timeStr}</span>
                         <span style="color:var(--success);font-size:0.7rem">已發送</span>
                     </div>
-                    <div style="margin-top:0.2rem">${h.title}</div>
-                    <div style="color:var(--accent);font-size:0.75rem;margin-top:0.2rem">🔓 ${h.realMsg.substring(0,20)}${h.realMsg.length > 20 ? '...' : ''}</div>
+                    <div style="margin-top:0.2rem">${this.escapeHtml(h.title)}</div>
+                    <div style="color:var(--accent);font-size:0.75rem;margin-top:0.2rem">🔓 ${this.escapeHtml(shortMsg)}</div>
                 </div>
             `;
         }).join('');

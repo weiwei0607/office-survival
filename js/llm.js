@@ -64,10 +64,16 @@ const LLM = {
     },
     
     loadConfig() {
-        const saved = localStorage.getItem('llm_config');
-        if (saved) {
-            this.config = { ...this.config, ...JSON.parse(saved) };
-        }
+        try {
+            const saved = localStorage.getItem('llm_config');
+            if (saved) this.config = { ...this.config, ...JSON.parse(saved) };
+        } catch { localStorage.removeItem('llm_config'); }
+    },
+
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
     },
     
     saveConfig() {
@@ -405,20 +411,20 @@ const LLM = {
                     
                     <div class="form-group">
                         <label class="form-label">API 金鑰</label>
-                        <input type="password" id="llm-apikey" class="input-area" 
-                            placeholder="sk-..." value="${this.config.apiKey}">
+                        <input type="password" id="llm-apikey" class="input-area"
+                            placeholder="sk-..." value="${this.escapeHtml(this.config.apiKey)}">
                     </div>
-                    
+
                     <div class="form-group" id="custom-url-group" style="display:${this.config.provider === 'custom' ? 'block' : 'none'}">
                         <label class="form-label">API 網址</label>
-                        <input type="text" id="llm-apiurl" class="input-area" 
-                            placeholder="https://api.example.com/v1/chat" value="${this.config.apiUrl}">
+                        <input type="text" id="llm-apiurl" class="input-area"
+                            placeholder="https://api.example.com/v1/chat" value="${this.escapeHtml(this.config.apiUrl)}">
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">模型名稱</label>
-                        <input type="text" id="llm-model" class="input-area" 
-                            placeholder="gpt-4o-mini" value="${this.config.model}">
+                        <input type="text" id="llm-model" class="input-area"
+                            placeholder="gpt-4o-mini" value="${this.escapeHtml(this.config.model)}">
                     </div>
                     
                     <div class="form-group">

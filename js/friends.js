@@ -58,11 +58,17 @@ const FriendsModule = {
         this.loadFriends();
     },
     
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
+    },
+
     loadFriends() {
         const saved = localStorage.getItem('chat_friends');
         if (saved) {
-            const parsed = JSON.parse(saved);
-            // 如果數據為空或不完整，使用預設
+            let parsed;
+            try { parsed = JSON.parse(saved); } catch { localStorage.removeItem('chat_friends'); this.resetToDefault(); return; }
             if (!parsed || parsed.length === 0) {
                 this.resetToDefault();
             } else {
@@ -296,13 +302,13 @@ const FriendsModule = {
             friendsHtml = `
                 <div style="display:flex;gap:0.4rem;overflow-x:auto;padding-bottom:0.3rem">
                     ${this.friends.map(f => `
-                        <div class="friend-avatar ${currentFriend?.id === f.id ? 'active' : ''}" 
-                             onclick="FriendsModule.selectFriend(${f.id})"
+                        <div class="friend-avatar ${currentFriend?.id === f.id ? 'active' : ''}"
+                             onclick="FriendsModule.selectFriend(${Number(f.id)})"
                              style="flex-shrink:0;width:60px;text-align:center;cursor:pointer;padding:0.4rem;border-radius:var(--radius-sm);${currentFriend?.id === f.id ? 'background:rgba(108,92,231,0.2);border:1px solid var(--primary)' : 'border:1px solid transparent'}">
                             <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:1.2rem">
                                 ${this.getThemeIcon(f.theme)}
                             </div>
-                            <div style="font-size:0.7rem;margin-top:0.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.codeName}</div>
+                            <div style="font-size:0.7rem;margin-top:0.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.escapeHtml(f.codeName)}</div>
                         </div>
                     `).join('')}
                 </div>

@@ -28,14 +28,16 @@ const DisguiseModule = {
     },
     
     loadSettings() {
-        const saved = localStorage.getItem('disguise_settings');
-        if (saved) {
-            const s = JSON.parse(saved);
-            this.currentSkin = s.skin || 'normal';
-            this.shakeEnabled = s.shake || false;
-            this.volumeEnabled = s.volume || false;
-            this.tapEnabled = s.tap || false;
-        }
+        try {
+            const saved = localStorage.getItem('disguise_settings');
+            if (saved) {
+                const s = JSON.parse(saved);
+                this.currentSkin = s.skin || 'normal';
+                this.shakeEnabled = s.shake || false;
+                this.volumeEnabled = s.volume || false;
+                this.tapEnabled = s.tap || false;
+            }
+        } catch { localStorage.removeItem('disguise_settings'); }
     },
     
     saveSettings() {

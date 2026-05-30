@@ -17,11 +17,20 @@ const ShieldModule = {
     },
     
     loadData() {
-        const stats = localStorage.getItem('shield_stats');
-        if (stats) this.stats = JSON.parse(stats);
-        
-        const history = localStorage.getItem('shield_history');
-        if (history) this.history = JSON.parse(history);
+        try {
+            const stats = localStorage.getItem('shield_stats');
+            if (stats) this.stats = JSON.parse(stats);
+        } catch { localStorage.removeItem('shield_stats'); }
+        try {
+            const history = localStorage.getItem('shield_history');
+            if (history) this.history = JSON.parse(history);
+        } catch { localStorage.removeItem('shield_history'); }
+    },
+
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
     },
     
     saveData() {
@@ -189,8 +198,8 @@ const ShieldModule = {
             <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem">最近防護記錄</div>
             ${this.history.slice(-5).reverse().map(h => `
                 <div style="padding:0.5rem;background:var(--bg);border-radius:8px;margin-bottom:0.4rem;font-size:0.8rem">
-                    <div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.original}</div>
-                    <div style="color:var(--success);margin-top:0.2rem">→ ${h.result.todos?.[0] || '已淨化'}</div>
+                    <div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.escapeHtml(h.original)}</div>
+                    <div style="color:var(--success);margin-top:0.2rem">→ ${this.escapeHtml(h.result.todos?.[0] || '已淨化')}</div>
                 </div>
             `).join('')}
         `;

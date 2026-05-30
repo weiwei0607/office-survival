@@ -41,14 +41,24 @@ const BoundaryModule = {
     },
     
     loadData() {
-        const settings = localStorage.getItem('boundary_settings');
-        if (settings) this.settings = { ...this.settings, ...JSON.parse(settings) };
-        
-        const stats = localStorage.getItem('boundary_stats');
-        if (stats) this.stats = { ...this.stats, ...JSON.parse(stats) };
-        
-        const snooze = localStorage.getItem('boundary_snooze');
-        if (snooze) this.snoozeUntil = new Date(snooze);
+        try {
+            const settings = localStorage.getItem('boundary_settings');
+            if (settings) this.settings = { ...this.settings, ...JSON.parse(settings) };
+        } catch { localStorage.removeItem('boundary_settings'); }
+        try {
+            const stats = localStorage.getItem('boundary_stats');
+            if (stats) this.stats = { ...this.stats, ...JSON.parse(stats) };
+        } catch { localStorage.removeItem('boundary_stats'); }
+        try {
+            const snooze = localStorage.getItem('boundary_snooze');
+            if (snooze) this.snoozeUntil = new Date(snooze);
+        } catch { localStorage.removeItem('boundary_snooze'); }
+    },
+
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
     },
     
     saveData() {
@@ -270,7 +280,7 @@ const BoundaryModule = {
                     
                     ${this.settings.autoReply ? `
                         <div style="margin-top:0.5rem">
-                            <input type="text" id="autoreply-msg" class="input-area" value="${this.settings.autoReplyMsg}" placeholder="自動回覆內容...">
+                            <input type="text" id="autoreply-msg" class="input-area" value="${this.escapeHtml(this.settings.autoReplyMsg)}" placeholder="自動回覆內容...">
                         </div>
                     ` : ''}
                 </div>
