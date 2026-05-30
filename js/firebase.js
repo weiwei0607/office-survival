@@ -166,7 +166,7 @@ const FirebaseClient = {
             online: true,
             provider: this.currentUser.isAnonymous ? 'anonymous' : 'google',
             lastActive: firebase.database.ServerValue.TIMESTAMP
-        });
+        }).catch(err => console.error('[Firebase] user write failed:', err));
         
         // 斷線時自動移除
         userRef.onDisconnect().remove();
@@ -284,7 +284,8 @@ const FirebaseClient = {
             timestamp: firebase.database.ServerValue.TIMESTAMP
         };
         
-        this.db.ref('office-survival/messages/' + roomId).push(msg);
+        this.db.ref('office-survival/messages/' + roomId).push(msg)
+            .catch(err => console.error('[Firebase] room message failed:', err));
         return true;
     },
     
@@ -308,7 +309,8 @@ const FirebaseClient = {
             timestamp: firebase.database.ServerValue.TIMESTAMP
         };
         
-        this.db.ref('office-survival/private/' + chatId).push(msg);
+        this.db.ref('office-survival/private/' + chatId).push(msg)
+            .catch(err => console.error('[Firebase] private message failed:', err));
         return true;
     },
     

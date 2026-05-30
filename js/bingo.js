@@ -440,7 +440,14 @@ const BingoModule = {
         
         this.recognition.onend = () => {
             if (this.isListening) {
-                try { this.recognition.start(); } catch(e) {}
+                try {
+                    this.recognition.start();
+                } catch(e) {
+                    console.warn('[Bingo] SpeechRecognition restart failed:', e);
+                    this.isListening = false;
+                    const status = document.getElementById('bingo-voice-status');
+                    if (status) status.textContent = '⚠️ 語音辨識已停止，請重新開始';
+                }
             }
         };
         

@@ -902,7 +902,7 @@ const ChatModule = {
                 <div style="padding:0.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
                     <span style="font-size:0.75rem;color:var(--text-muted);min-width:35px">${msg.time}</span>
                     <span style="font-size:0.75rem;color:var(--primary);min-width:40px">${msg.sender === 'me' ? '我' : '同事'}</span>
-                    <span style="flex:1;font-size:0.85rem">${displayText}</span>
+                    <span style="flex:1;font-size:0.85rem">${this.escapeHtml(displayText)}</span>
                 </div>
             `;
         }).join('');
