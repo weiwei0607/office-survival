@@ -5,10 +5,10 @@
 
 const LLM = {
     config: {
-        provider: 'mock',       // 'mock' | 'openai' | 'claude' | 'custom'
+        provider: 'gemini',     // 'mock' | 'gemini' | 'openai' | 'claude' | 'custom'
         apiKey: '',
         apiUrl: '',
-        model: 'gpt-4o-mini',
+        model: 'gemini-1.5-flash',
         temperature: 0.7,
         maxTokens: 500,
         enabled: false
@@ -89,7 +89,7 @@ const LLM = {
     // 主呼叫入口
     async call(type, input, options = {}) {
         // 如果沒啟用 LLM 或沒有 API key，回退到 Mock
-        if (!this.config.enabled || this.config.provider === 'mock') {
+        if (!this.config.enabled || this.config.provider === 'mock' || !this.config.apiKey) {
             return this.mockCall(type, input, options);
         }
         
@@ -97,6 +97,8 @@ const LLM = {
         
         try {
             switch (this.config.provider) {
+                case 'gemini':
+                    return await this.callGemini(prompt, options);
                 case 'openai':
                     return await this.callOpenAI(prompt, options);
                 case 'claude':
@@ -291,6 +293,35 @@ const LLM = {
         };
     },
     
+    // 真實 API: Gemini
+    async callGemini(prompt, options) {
+        const model = this.config.model || 'gemini-1.5-flash';
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { response_mime_type: 'application/json' },
+                })
+            }
+        );
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(`Gemini API 錯誤: ${err.error?.message ?? response.status}`);
+        }
+
+        const data = await response.json();
+        const content = data.candidates[0].content.parts[0].text.trim();
+        try {
+            return { ...JSON.parse(content), source: 'gemini' };
+        } catch {
+            return { text: content, source: 'gemini' };
+        }
+    },
+
     // 真實 API: OpenAI
     async callOpenAI(prompt, options) {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -403,6 +434,7 @@ const LLM = {
                         <label class="form-label">AI 提供商</label>
                         <select id="llm-provider" class="input-area" style="height:44px">
                             <option value="mock" ${this.config.provider === 'mock' ? 'selected' : ''}>🧠 Mock 模式（免費，本地規則）</option>
+                            <option value="gemini" ${this.config.provider === 'gemini' ? 'selected' : ''}>🔵 Gemini (Google，推薦)</option>
                             <option value="openai" ${this.config.provider === 'openai' ? 'selected' : ''}>🟢 OpenAI (GPT-4/GPT-3.5)</option>
                             <option value="claude" ${this.config.provider === 'claude' ? 'selected' : ''}>🟣 Claude (Anthropic)</option>
                             <option value="custom" ${this.config.provider === 'custom' ? 'selected' : ''}>⚙️ 自定義 API</option>
@@ -412,7 +444,7 @@ const LLM = {
                     <div class="form-group">
                         <label class="form-label">API 金鑰</label>
                         <input type="password" id="llm-apikey" class="input-area"
-                            placeholder="sk-..." value="${this.escapeHtml(this.config.apiKey)}">
+                            placeholder="${this.config.provider === 'gemini' ? 'AIzaSy...' : 'sk-...'}" value="${this.escapeHtml(this.config.apiKey)}">
                     </div>
 
                     <div class="form-group" id="custom-url-group" style="display:${this.config.provider === 'custom' ? 'block' : 'none'}">
