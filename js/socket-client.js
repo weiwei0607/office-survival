@@ -12,6 +12,12 @@ const SocketClient = {
     friends: new Set(),
     onlineUsers: [],
     
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
+    },
+
     init() {
         // 檢查是否已登入
         const savedCodeName = localStorage.getItem('my_code_name');
@@ -67,7 +73,7 @@ const SocketClient = {
             // 更新標題顯示自己的ID
             const noteEl = document.getElementById('chat-friend-note');
             if (noteEl) {
-                noteEl.innerHTML = `我的代號：<b>${data.codeName}</b> · 公開ID：<b style="color:var(--primary)">${data.publicId}</b> <button class="btn-text" style="font-size:0.65rem" onclick="navigator.clipboard.writeText('${data.publicId}')">📋複製</button>`;
+                noteEl.innerHTML = `我的代號：<b>${this.escapeHtml(data.codeName)}</b> · 公開ID：<b style="color:var(--primary)">${this.escapeHtml(data.publicId)}</b> <button class="btn-text" style="font-size:0.65rem" onclick="navigator.clipboard.writeText('${this.escapeHtml(data.publicId)}')">📋複製</button>`;
             }
             
             this.fetchOnlineUsers();
@@ -237,9 +243,9 @@ const SocketClient = {
             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem;background:var(--bg);border-radius:8px;margin-bottom:0.3rem">
                 <div style="display:flex;align-items:center;gap:0.5rem">
                     <div style="width:8px;height:8px;border-radius:50%;background:var(--success)"></div>
-                    <span style="font-size:0.8rem">${codeName}</span>
+                    <span style="font-size:0.8rem">${this.escapeHtml(codeName)}</span>
                 </div>
-                <button class="btn-text" style="font-size:0.7rem;color:var(--primary)" onclick="ChatModule.startPrivateChat('${codeName}')">聊天</button>
+                <button class="btn-text" style="font-size:0.7rem;color:var(--primary)" onclick="ChatModule.startPrivateChat('${this.escapeHtml(codeName)}')">聊天</button>
             </div>
         `).join('');
     },

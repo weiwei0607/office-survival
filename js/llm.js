@@ -494,7 +494,7 @@ const LLM = {
             if (testResult.success) {
                 result.innerHTML = '<span style="color:var(--success)">✅ 連線成功！</span>';
             } else {
-                result.innerHTML = `<span style="color:var(--danger)">❌ 連線失敗：${testResult.error}</span>`;
+                result.innerHTML = `<span style="color:var(--danger)">❌ 連線失敗：${this.escapeHtml(testResult.error)}</span>`;
             }
         });
         
