@@ -8,7 +8,7 @@ const LLM = {
         provider: 'gemini',     // 'mock' | 'gemini' | 'openai' | 'claude' | 'custom'
         apiKey: '',
         apiUrl: '',
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         temperature: 0.7,
         maxTokens: 500,
         enabled: false
@@ -295,7 +295,7 @@ const LLM = {
     
     // 真實 API: Gemini
     async callGemini(prompt, options) {
-        const model = this.config.model || 'gemini-1.5-flash';
+        const model = this.config.model || 'gemini-2.5-flash';
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.apiKey}`,
             {
