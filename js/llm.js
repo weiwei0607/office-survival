@@ -66,7 +66,13 @@ const LLM = {
     loadConfig() {
         try {
             const saved = localStorage.getItem('llm_config');
-            if (saved) this.config = { ...this.config, ...JSON.parse(saved) };
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // 安全提醒：API Key 不存入 localStorage，避免 XSS 時金鑰外洩
+                // 僅從 localStorage 讀取非敏感設定（provider, model, temperature, enabled）
+                const { apiKey, ...safeConfig } = parsed;
+                this.config = { ...this.config, ...safeConfig };
+            }
         } catch { localStorage.removeItem('llm_config'); }
     },
 
@@ -77,13 +83,23 @@ const LLM = {
     },
     
     saveConfig() {
-        localStorage.setItem('llm_config', JSON.stringify(this.config));
+        // 安全提醒：不把 apiKey 寫入 localStorage，防止 XSS 攻擊竊取金鑰
+        const { apiKey, ...safeConfig } = this.config;
+        localStorage.setItem('llm_config', JSON.stringify(safeConfig));
     },
     
     // 設定 API 金鑰等
     setConfig(newConfig) {
         this.config = { ...this.config, ...newConfig };
         this.saveConfig();
+    },
+
+    // 帶超時的 fetch 封裝（預設 15 秒）
+    fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        return fetch(url, { ...options, signal: controller.signal })
+            .finally(() => clearTimeout(timeoutId));
     },
     
     // 主呼叫入口
@@ -296,11 +312,14 @@ const LLM = {
     // 真實 API: Gemini
     async callGemini(prompt, options) {
         const model = this.config.model || 'gemini-2.5-flash';
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.apiKey}`,
+        const response = await this.fetchWithTimeout(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
             {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': this.config.apiKey
+                },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: { response_mime_type: 'application/json' },
@@ -314,7 +333,11 @@ const LLM = {
         }
 
         const data = await response.json();
-        const content = data.candidates[0].content.parts[0].text.trim();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (typeof text !== 'string') {
+            return { error: 'Gemini 回傳格式異常，請檢查模型與金鑰設定', source: 'gemini' };
+        }
+        const content = text.trim();
         try {
             return { ...JSON.parse(content), source: 'gemini' };
         } catch {
@@ -324,7 +347,7 @@ const LLM = {
 
     // 真實 API: OpenAI
     async callOpenAI(prompt, options) {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await this.fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -344,7 +367,10 @@ const LLM = {
         if (!response.ok) throw new Error(`OpenAI API 錯誤: ${response.status}`);
         
         const data = await response.json();
-        const content = data.choices[0].message.content;
+        const content = data?.choices?.[0]?.message?.content;
+        if (typeof content !== 'string') {
+            return { error: 'OpenAI 回傳格式異常，請檢查模型與金鑰設定', source: 'openai' };
+        }
         
         // 嘗試解析 JSON
         try {
@@ -356,7 +382,7 @@ const LLM = {
     
     // 真實 API: Claude
     async callClaude(prompt, options) {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await this.fetchWithTimeout('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -373,7 +399,10 @@ const LLM = {
         if (!response.ok) throw new Error(`Claude API 錯誤: ${response.status}`);
         
         const data = await response.json();
-        const content = data.content[0].text;
+        const content = data?.content?.[0]?.text;
+        if (typeof content !== 'string') {
+            return { error: 'Claude 回傳格式異常，請檢查模型與金鑰設定', source: 'claude' };
+        }
         
         try {
             return JSON.parse(content);
@@ -384,7 +413,7 @@ const LLM = {
     
     // 自定義 API
     async callCustom(prompt, options) {
-        const response = await fetch(this.config.apiUrl, {
+        const response = await this.fetchWithTimeout(this.config.apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -456,7 +485,7 @@ const LLM = {
                     <div class="form-group">
                         <label class="form-label">模型名稱</label>
                         <input type="text" id="llm-model" class="input-area"
-                            placeholder="gpt-4o-mini" value="${this.escapeHtml(this.config.model)}">
+                            placeholder="gemini-2.5-flash" value="${this.escapeHtml(this.config.model)}">
                     </div>
                     
                     <div class="form-group">
@@ -543,7 +572,7 @@ const LLM = {
         const provider = document.getElementById('llm-provider')?.value || 'mock';
         const apiKey = document.getElementById('llm-apikey')?.value || '';
         const apiUrl = document.getElementById('llm-apiurl')?.value || '';
-        const model = document.getElementById('llm-model')?.value || 'gpt-4o-mini';
+        const model = document.getElementById('llm-model')?.value || 'gemini-2.5-flash';
         const temperature = parseFloat(document.getElementById('llm-temp')?.value || 0.7);
         
         return { enabled, provider, apiKey, apiUrl, model, temperature };

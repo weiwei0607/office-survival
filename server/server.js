@@ -9,11 +9,24 @@ const path = require('path');
 const { Server } = require('socket.io');
 
 const PORT = process.env.PORT || 9999;
+const PUBLIC_DIR = path.resolve(__dirname, '..');
 
 // 靜態檔案伺服器（同時服務前端）
 const server = http.createServer((req, res) => {
-    let filePath = req.url === '/' ? '/index.html' : req.url;
-    filePath = path.join(__dirname, '..', filePath);
+    // 防止路徑遍歷：只允許公開目錄內的檔案
+    const decodedUrl = decodeURIComponent(req.url === '/' ? '/index.html' : req.url);
+    if (decodedUrl.includes('..') || decodedUrl.includes('\0')) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+    }
+
+    let filePath = path.join(PUBLIC_DIR, decodedUrl);
+    if (!filePath.startsWith(PUBLIC_DIR + path.sep) && filePath !== PUBLIC_DIR) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+    }
     
     const ext = path.extname(filePath);
     const mimeTypes = {
@@ -38,6 +51,8 @@ const server = http.createServer((req, res) => {
 });
 
 // Socket.io
+// NOTE: For production, consider adding maxHttpBufferSize to limit payload size,
+// e.g. { maxHttpBufferSize: 1e6 } // 1 MB
 const io = new Server(server, {
     cors: { origin: '*' }
 });

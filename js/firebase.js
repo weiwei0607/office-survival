@@ -6,22 +6,11 @@
  * 1. 去 https://console.firebase.google.com 創建專案
  * 2. 啟用 Realtime Database + Authentication
  * 3. 在 Authentication → Sign-in method 啟用「Google」
- * 4. 複製配置貼到下方 firebaseConfig
+ * 4. 複製配置貼到 js/firebase-config.js
  * 5. 部署到 Firebase Hosting 或 Netlify
  */
 
-// ============================================
-// 🔧 請填入你的 Firebase 配置（從 Firebase Console 複製）
-// ============================================
-const firebaseConfig = {
-    apiKey: "AIzaSyDjGZCq0J3uehh8kZqGk1XZCw0_pvT90os",
-    authDomain: "space-clear-app.firebaseapp.com",
-    databaseURL: "https://space-clear-app-default-rtdb.firebaseio.com",
-    projectId: "space-clear-app",
-    storageBucket: "space-clear-app.firebasestorage.app",
-    messagingSenderId: "815296228640",
-    appId: "1:815296228640:web:4f321ba84cd629ec82fb45"
-};
+// firebaseConfig 定義在 js/firebase-config.js（client-side public keys）
 
 // 模擬模式：如果沒有配置，啟用本地模擬
 const USE_MOCK = !firebaseConfig.apiKey;
@@ -70,6 +59,11 @@ const FirebaseClient = {
                 const script = document.createElement('script');
                 script.src = src;
                 script.onload = () => {
+                    loaded++;
+                    if (loaded === scripts.length) resolve();
+                };
+                script.onerror = () => {
+                    console.error('[Firebase] 無法載入 SDK:', src);
                     loaded++;
                     if (loaded === scripts.length) resolve();
                 };
@@ -343,25 +337,69 @@ const FirebaseClient = {
         }
     },
     
+    // XSS 防護：將純文字轉為安全 HTML
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
+    },
+
+    // XSS 防護：轉義 HTML 屬性值中的危險字元
+    escapeAttr(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    },
+    
     renderOnlineUsers(users) {
         const container = document.getElementById('online-users-list');
         if (!container) return;
         
+        container.innerHTML = '';
+        
         if (users.length === 0) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:0.75rem;padding:0.5rem">暫無其他用戶</div>';
+            const empty = document.createElement('div');
+            empty.style.cssText = 'text-align:center;color:var(--text-muted);font-size:0.75rem;padding:0.5rem';
+            empty.textContent = '暫無其他用戶';
+            container.appendChild(empty);
             return;
         }
         
-        container.innerHTML = users.map(u => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem;background:var(--bg);border-radius:8px;margin-bottom:0.3rem">
-                <div style="display:flex;align-items:center;gap:0.5rem">
-                    <div style="width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite"></div>
-                    <span style="font-size:0.8rem">${u.codeName}</span>
-                    <span style="font-size:0.65rem;color:var(--text-muted)">${u.shortUid}</span>
-                </div>
-                <button class="btn-text" style="font-size:0.7rem;color:var(--primary)" onclick="FirebaseClient.startPrivateChat('${u.uid}', '${u.codeName}', '${u.theme}')">私聊</button>
-            </div>
-        `).join('');
+        users.forEach(u => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0.4rem;background:var(--bg);border-radius:8px;margin-bottom:0.3rem';
+            
+            const left = document.createElement('div');
+            left.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+            
+            const dot = document.createElement('div');
+            dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite';
+            
+            const name = document.createElement('span');
+            name.style.fontSize = '0.8rem';
+            name.textContent = u.codeName;
+            
+            const shortId = document.createElement('span');
+            shortId.style.cssText = 'font-size:0.65rem;color:var(--text-muted)';
+            shortId.textContent = u.shortUid;
+            
+            left.appendChild(dot);
+            left.appendChild(name);
+            left.appendChild(shortId);
+            
+            const btn = document.createElement('button');
+            btn.className = 'btn-text';
+            btn.style.cssText = 'font-size:0.7rem;color:var(--primary)';
+            btn.textContent = '私聊';
+            btn.addEventListener('click', () => this.startPrivateChat(u.uid, u.codeName, u.theme));
+            
+            row.appendChild(left);
+            row.appendChild(btn);
+            container.appendChild(row);
+        });
     },
     
     startPrivateChat(otherUid, codeName, theme) {
@@ -418,20 +456,53 @@ const FirebaseClient = {
         
         if (loginArea) {
             const shortUid = this.currentUser?.uid?.substring(0, 8) || '';
-            loginArea.innerHTML = `
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:0.8rem">
-                    <div style="display:flex;align-items:center;gap:0.5rem">
-                        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:1rem">
-                            ${this.currentUser?.photoURL ? `<img src="${this.currentUser.photoURL}" style="width:32px;height:32px;border-radius:50%">` : '👤'}
-                        </div>
-                        <div>
-                            <div style="font-size:0.85rem;font-weight:600">${this.myCodeName}</div>
-                            <div style="font-size:0.7rem;color:var(--text-muted)">${shortUid}</div>
-                        </div>
-                    </div>
-                    <button class="btn-text" style="font-size:0.75rem;color:var(--danger)" onclick="FirebaseClient.signOut()">登出</button>
-                </div>
-            `;
+            loginArea.innerHTML = '';
+            
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.8rem;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:0.8rem';
+            
+            const left = document.createElement('div');
+            left.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+            
+            const avatar = document.createElement('div');
+            avatar.style.cssText = 'width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:1rem';
+            
+            if (this.currentUser?.photoURL && /^https?:\/\//.test(this.currentUser.photoURL)) {
+                const img = document.createElement('img');
+                img.src = this.currentUser.photoURL;
+                img.style.cssText = 'width:32px;height:32px;border-radius:50%';
+                img.onerror = () => { avatar.textContent = '👤'; };
+                avatar.innerHTML = '';
+                avatar.appendChild(img);
+            } else {
+                avatar.textContent = '👤';
+            }
+            
+            const info = document.createElement('div');
+            
+            const nameEl = document.createElement('div');
+            nameEl.style.cssText = 'font-size:0.85rem;font-weight:600';
+            nameEl.textContent = this.myCodeName;
+            
+            const idEl = document.createElement('div');
+            idEl.style.cssText = 'font-size:0.7rem;color:var(--text-muted)';
+            idEl.textContent = shortUid;
+            
+            info.appendChild(nameEl);
+            info.appendChild(idEl);
+            
+            left.appendChild(avatar);
+            left.appendChild(info);
+            
+            const logoutBtn = document.createElement('button');
+            logoutBtn.className = 'btn-text';
+            logoutBtn.style.cssText = 'font-size:0.75rem;color:var(--danger)';
+            logoutBtn.textContent = '登出';
+            logoutBtn.addEventListener('click', () => this.signOut());
+            
+            wrapper.appendChild(left);
+            wrapper.appendChild(logoutBtn);
+            loginArea.appendChild(wrapper);
         }
         
         if (onlineSection) onlineSection.style.display = 'block';
@@ -442,7 +513,7 @@ const FirebaseClient = {
         
         if (noteEl) {
             const providerText = this.currentUser?.isAnonymous ? '匿名' : 'Google';
-            noteEl.innerHTML = `我的代號：<b>${this.myCodeName}</b> · ${providerText} 連線中 🌍`;
+            noteEl.innerHTML = `我的代號：<b>${this.escapeHtml(this.myCodeName)}</b> · ${this.escapeHtml(providerText)} 連線中 🌍`;
         }
         
         FirebaseClient.showToast(`🌍 已上線：${this.myCodeName}`, 'success');
@@ -482,7 +553,7 @@ const FirebaseClient = {
                 
                 <div style="background:var(--bg);padding:0.8rem;border-radius:var(--radius-sm);margin-bottom:1rem">
                     <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.3rem">我的代號</div>
-                    <div style="font-size:1rem;font-weight:600">${this.myCodeName}</div>
+                    <div style="font-size:1rem;font-weight:600">${this.escapeHtml(this.myCodeName)}</div>
                     <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem">ID: ${uid.substring(0, 8)}...</div>
                 </div>
                 
@@ -683,7 +754,7 @@ const FirebaseClient = {
         // 檢查是否已經是好友
         const existing = FriendsModule.friends.find(f => f.firebaseUid === uid);
         if (existing) {
-            this.showToast(`${codeName} 已經是你的好友了`, 'info');
+            this.showToast(`${this.escapeHtml(codeName)} 已經是你的好友了`, 'info');
             FriendsModule.selectFriend(existing.id);
             document.querySelector('.fixed-overlay')?.remove();
             return;
@@ -709,13 +780,13 @@ const FirebaseClient = {
                 <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));margin:0 auto 1rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem">
                     ${FriendsModule.getThemeIcon(theme)}
                 </div>
-                <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.3rem">${codeName}</div>
+                <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.3rem">${this.escapeHtml(codeName)}</div>
                 <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">${isOnline ? '🟢 上線中' : '⚪ 離線'}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:1rem">主題：${FriendsModule.getThemeName(theme)}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:1rem">主題：${this.escapeHtml(FriendsModule.getThemeName(theme))}</div>
                 
                 <div style="display:flex;gap:0.5rem">
                     <button class="btn-secondary" style="flex:1" onclick="this.closest('.fixed-overlay').remove()">取消</button>
-                    <button class="btn-primary" style="flex:1" onclick="FirebaseClient.confirmAddFriend('${uid}', '${codeName}', '${theme}')">添加好友</button>
+                    <button class="btn-primary" style="flex:1" onclick="FirebaseClient.confirmAddFriend('${this.escapeAttr(uid)}', '${this.escapeAttr(codeName)}', '${this.escapeAttr(theme)}')">添加好友</button>
                 </div>
             </div>
         `;
@@ -731,7 +802,7 @@ const FirebaseClient = {
         const friend = FriendsModule.addFriend(codeName, codeName, '掃碼添加', theme, uid);
         document.querySelectorAll('.fixed-overlay').forEach(el => el.remove());
         
-        this.showToast(`已添加 ${codeName} 為好友！`, 'success');
+        this.showToast(`已添加 ${this.escapeHtml(codeName)} 為好友！`, 'success');
         
         // 選中新好友並開始監聽私聊
         FriendsModule.selectFriend(friend.id);
@@ -834,10 +905,10 @@ const FirebaseClient = {
                 </div>
                 
                 <div style="margin-bottom:1rem">
-                    <div style="font-weight:600;margin-bottom:0.3rem">4. 複製設定到 firebase.js</div>
+                    <div style="font-weight:600;margin-bottom:0.3rem">4. 複製設定到 firebase-config.js</div>
                     <div style="font-size:0.8rem;color:var(--text-muted)">
                         點「⚙️ 專案設定」→ 捲到「你的應用程式」→ 複製 firebaseConfig<br>
-                        貼到 <code>js/firebase.js</code> 檔案最上面的 firebaseConfig
+                        貼到 <code>js/firebase-config.js</code> 檔案最上面的 firebaseConfig
                     </div>
                 </div>
                 
