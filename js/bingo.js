@@ -258,7 +258,7 @@ const BingoModule = {
             const newLines = bingoCount - this.currentBingoLines;
             this.currentBingoLines = bingoCount;
             this.saveState();
-            this.showBingo Celebration(newLines);
+            this.showBingoCelebration(newLines);
         }
         
         if (bingoCount > 0) {
@@ -268,7 +268,7 @@ const BingoModule = {
         return bingoCount;
     },
     
-    showBingo Celebration(newLines) {
+    showBingoCelebration(newLines) {
         // 震動
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100, 50, 200]);

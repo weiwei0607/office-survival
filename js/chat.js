@@ -347,7 +347,17 @@ const ChatModule = {
     loadMessages() {
         const saved = localStorage.getItem('chat_messages');
         if (saved) {
-            this.messages = JSON.parse(saved);
+            try {
+                this.messages = JSON.parse(saved);
+            } catch (e) {
+                console.warn('聊天記錄解析失敗，使用預設訊息', e);
+                this.messages = [
+                    { id: 1, text: '今晚去吃麻辣鍋？', sender: 'other', time: '14:30', mode: 'normal' },
+                    { id: 2, text: '好啊！七點老地方見', sender: 'me', time: '14:32', mode: 'normal' },
+                    { id: 3, text: '老闆今天很機車...', sender: 'other', time: '14:35', mode: 'normal' },
+                    { id: 4, text: '又怎麼了？', sender: 'me', time: '14:36', mode: 'normal' }
+                ];
+            }
         } else {
             this.messages = [
                 { id: 1, text: '今晚去吃麻辣鍋？', sender: 'other', time: '14:30', mode: 'normal' },
@@ -873,6 +883,7 @@ const ChatModule = {
     },
     
     renderAsChat(container) {
+        const isHtmlMode = this.currentMode === 'excel' || this.currentMode === 'outlook';
         container.innerHTML = this.messages.map(msg => {
             const displayText = this.transformForMode(msg);
             const isEncrypted = this.currentMode === 'encrypt';
@@ -880,11 +891,14 @@ const ChatModule = {
             // 決定顯示名稱
             let showName = msg.sender === 'me' ? (msg.senderCode || '我') : (msg.senderCode || '對方');
             
+            // Excel/Outlook 回傳的是有意義的 HTML，不應再被 escape；其他模式是純文字需要 escape
+            const safeDisplayText = isHtmlMode ? displayText : this.escapeHtml(displayText);
+            
             return `
                 <div class="msg ${msg.sender === 'me' ? 'sent' : 'received'}" 
                      style="${isEncrypted ? 'background:linear-gradient(135deg,#6c5ce7,#a29bfe)' : ''}">
-                    <div style="font-size:0.7rem;opacity:0.7;margin-bottom:0.2rem">${showName}</div>
-                    <div>${this.escapeHtml(displayText)}</div>
+                    <div style="font-size:0.7rem;opacity:0.7;margin-bottom:0.2rem">${this.escapeHtml(showName)}</div>
+                    <div>${safeDisplayText}</div>
                     <div class="msg-time">
                         ${msg.time}
                         ${isEncrypted ? '<span style="margin-left:4px">🔒</span>' : ''}
@@ -898,11 +912,12 @@ const ChatModule = {
         // Excel/Outlook 模式用列表呈現
         const items = this.messages.map((msg, i) => {
             const displayText = this.transformForMode(msg);
+            // toExcelFormat / toOutlookFormat 回傳的是有意義的 HTML，不應再被 escape
             return `
                 <div style="padding:0.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
                     <span style="font-size:0.75rem;color:var(--text-muted);min-width:35px">${msg.time}</span>
                     <span style="font-size:0.75rem;color:var(--primary);min-width:40px">${msg.sender === 'me' ? '我' : '同事'}</span>
-                    <span style="flex:1;font-size:0.85rem">${this.escapeHtml(displayText)}</span>
+                    <span style="flex:1;font-size:0.85rem">${displayText}</span>
                 </div>
             `;
         }).join('');
