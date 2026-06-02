@@ -31,7 +31,7 @@ const ChatModule = {
                 '加班': '工時延長計畫', '下班': '工作時段結束', '週末': '非工作日區間',
                 '放假': '人力資源暫停配置', '旅遊': '異地辦公考察', '電影': '視覺內容分析',
                 '遊戲': '互動式模擬訓練', '睡覺': '生理系統維護', '累': '能量耗盡警告',
-                '爽': '正向反饋狀態', '開心': '士氣指數提升', '難過': '情緒低谷期',
+                '開心': '士氣指數提升', '難過': '情緒低谷期',
                 '生氣': '憤怒管理需求', '煩': '心理負載過高', '爽': '正向反饋狀態',
                 '錢': '資金流', '沒錢': '資金流枯竭', '買': '執行採購', '賣': '執行資產處分',
                 '手機': '通訊設備終端', '電腦': '運算設備終端', '網路': '數據傳輸通道',
@@ -225,6 +225,7 @@ const ChatModule = {
     init() {
         this.loadTheme();
         this.chatMode = localStorage.getItem('chat_mode') || 'private';
+        this.encryptMap = {}; // fallback map for encryptMessage() when LLM is disabled
         
         FriendsModule.init();
         GroupsModule.init();

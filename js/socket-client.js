@@ -73,7 +73,23 @@ const SocketClient = {
             // 更新標題顯示自己的ID
             const noteEl = document.getElementById('chat-friend-note');
             if (noteEl) {
-                noteEl.innerHTML = `我的代號：<b>${this.escapeHtml(data.codeName)}</b> · 公開ID：<b style="color:var(--primary)">${this.escapeHtml(data.publicId)}</b> <button class="btn-text" style="font-size:0.65rem" onclick="navigator.clipboard.writeText('${this.escapeHtml(data.publicId)}')">📋複製</button>`;
+                noteEl.innerHTML = '';
+                noteEl.appendChild(document.createTextNode('我的代號：'));
+                const codeB = document.createElement('b');
+                codeB.textContent = data.codeName;
+                noteEl.appendChild(codeB);
+                noteEl.appendChild(document.createTextNode(' · 公開ID：'));
+                const idB = document.createElement('b');
+                idB.style.color = 'var(--primary)';
+                idB.textContent = data.publicId;
+                noteEl.appendChild(idB);
+                noteEl.appendChild(document.createTextNode(' '));
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'btn-text';
+                copyBtn.style.fontSize = '0.65rem';
+                copyBtn.textContent = '📋複製';
+                copyBtn.addEventListener('click', () => navigator.clipboard.writeText(data.publicId));
+                noteEl.appendChild(copyBtn);
             }
             
             this.fetchOnlineUsers();

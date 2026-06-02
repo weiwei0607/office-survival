@@ -51,11 +51,43 @@ const server = http.createServer((req, res) => {
 });
 
 // Socket.io
-// NOTE: For production, consider adding maxHttpBufferSize to limit payload size,
-// e.g. { maxHttpBufferSize: 1e6 } // 1 MB
+// CORS: restrict to same-origin in production; allow localhost dev origins
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:9999', 'http://127.0.0.1:9999', 'http://localhost:3000'];
+
 const io = new Server(server, {
-    cors: { origin: '*' }
+    cors: {
+        origin: (origin, callback) => {
+            // Allow requests with no origin (e.g., mobile apps, same-origin)
+            if (!origin) return callback(null, true);
+            if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+            // In dev mode with no env set, fall back to permissive (remove for production)
+            if (!process.env.ALLOWED_ORIGINS) return callback(null, true);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    maxHttpBufferSize: 1e6, // 1 MB per message
 });
+
+// Simple per-socket rate limiter: max 30 messages per 10 seconds
+const rateLimits = new Map();
+const RATE_LIMIT_WINDOW = 10000; // 10s
+const RATE_LIMIT_MAX = 30;
+
+function checkRateLimit(socketId) {
+    const now = Date.now();
+    const limit = rateLimits.get(socketId);
+    if (!limit || now - limit.windowStart > RATE_LIMIT_WINDOW) {
+        rateLimits.set(socketId, { windowStart: now, count: 1 });
+        return true;
+    }
+    if (limit.count >= RATE_LIMIT_MAX) {
+        return false;
+    }
+    limit.count++;
+    return true;
+}
 
 // 資料存儲
 const users = new Map();        // socketId -> { id, codeName, realName, socketId, roomId }
@@ -117,6 +149,10 @@ io.on('connection', (socket) => {
     socket.on('createRoom', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
+        if (!checkRateLimit(socket.id)) {
+            socket.emit('error', { message: '操作過於頻繁，請稍後再試' });
+            return;
+        }
         
         const roomId = generateId();
         const room = {
@@ -140,6 +176,10 @@ io.on('connection', (socket) => {
     socket.on('joinRoom', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
+        if (!checkRateLimit(socket.id)) {
+            socket.emit('error', { message: '操作過於頻繁，請稍後再試' });
+            return;
+        }
         
         const roomId = data.roomId;
         const room = rooms.get(roomId);
@@ -176,6 +216,10 @@ io.on('connection', (socket) => {
     socket.on('sendMessage', (data) => {
         const user = users.get(socket.id);
         if (!user || !user.roomId) return;
+        if (!checkRateLimit(socket.id)) {
+            socket.emit('error', { message: '發送過於頻繁，請稍後再試' });
+            return;
+        }
         
         const room = rooms.get(user.roomId);
         if (!room) return;
@@ -202,6 +246,10 @@ io.on('connection', (socket) => {
     socket.on('addFriend', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
+        if (!checkRateLimit(socket.id)) {
+            socket.emit('error', { message: '操作過於頻繁，請稍後再試' });
+            return;
+        }
         
         // 查找對方
         let targetUser = null;
@@ -305,6 +353,10 @@ io.on('connection', (socket) => {
     socket.on('sendPrivateMessage', (data) => {
         const user = users.get(socket.id);
         if (!user) return;
+        if (!checkRateLimit(socket.id)) {
+            socket.emit('error', { message: '發送過於頻繁，請稍後再試' });
+            return;
+        }
         
         // 查找對方 socket
         let targetSocketId = null;

@@ -10,7 +10,10 @@
  * 5. 部署到 Firebase Hosting 或 Netlify
  */
 
-// firebaseConfig 定義在 js/firebase-config.js（client-side public keys）
+// These are client-safe Firebase config values. They can be exposed in frontend code.
+// The actual security is enforced by Firestore / Realtime Database Security Rules.
+//
+// firebaseConfig is defined in js/firebase-config.js (public-by-design keys)
 
 // 模擬模式：如果沒有配置，啟用本地模擬
 const USE_MOCK = !firebaseConfig.apiKey;
