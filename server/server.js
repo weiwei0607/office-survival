@@ -220,25 +220,29 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: '發送過於頻繁，請稍後再試' });
             return;
         }
-        
+
+        if (!data.text || typeof data.text !== 'string' || data.text.length > 2000) return;
+
         const room = rooms.get(user.roomId);
         if (!room) return;
-        
+
+        const displayText = data.displayText;
         const msg = {
             id: generateId(),
-            text: data.text,
-            displayText: data.displayText || data.text,
+            text: data.text.slice(0, 2000),
+            displayText: (typeof displayText === 'string' ? displayText : data.text).slice(0, 2000),
             sender: user.codeName,
             senderId: user.id,
             time: new Date().toISOString(),
             mode: data.mode || 'normal'
         };
-        
+
         room.messages.push(msg);
-        
+        if (room.messages.length > 200) room.messages = room.messages.slice(-200);
+
         // 廣播給房間所有人
         io.to(user.roomId).emit('newMessage', msg);
-        
+
         console.log(`${user.codeName}: ${msg.text.substring(0, 30)}`);
     });
     
@@ -394,23 +398,28 @@ io.on('connection', (socket) => {
         const user = users.get(socket.id);
         if (user) {
             console.log(`用戶離線: ${user.codeName}`);
-            
-            // 通知房間成員
+
             if (user.roomId) {
                 const room = rooms.get(user.roomId);
                 if (room) {
+                    room.members = room.members.filter(m => m !== user.codeName);
                     socket.to(user.roomId).emit('memberLeft', {
                         codeName: user.codeName,
-                        members: room.members.filter(m => m !== user.codeName)
+                        members: room.members
                     });
+                    // 清理空房間
+                    if (room.members.length === 0) {
+                        rooms.delete(user.roomId);
+                    }
                 }
             }
-            
+
             // 延遲刪除（讓對方有時間重連）
             setTimeout(() => {
                 const current = users.get(socket.id);
                 if (current && current.socketId === socket.id) {
                     users.delete(socket.id);
+                    rateLimits.delete(socket.id);
                 }
             }, 30000); // 30秒後刪除
         }
