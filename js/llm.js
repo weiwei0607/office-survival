@@ -102,28 +102,50 @@ const LLM = {
             .finally(() => clearTimeout(timeoutId));
     },
     
+    _cacheKey(type, input) {
+        return 'llm_cache_' + [type, this.config.provider, this.config.model, input.slice(0, 80)].join('_').replace(/[^a-zA-Z0-9_-]/g, '_');
+    },
+
     // 主呼叫入口
     async call(type, input, options = {}) {
         // 如果沒啟用 LLM 或沒有 API key，回退到 Mock
         if (!this.config.enabled || this.config.provider === 'mock' || !this.config.apiKey) {
             return this.mockCall(type, input, options);
         }
+
+        // 檢查快取（5 分鐘 TTL，僅針對相同輸入）
+        const cacheKey = this._cacheKey(type, input);
+        const cachedRaw = localStorage.getItem(cacheKey);
+        const cachedTime = localStorage.getItem(cacheKey + '_time');
+        const now = Date.now();
+        if (cachedRaw && cachedTime && now - parseInt(cachedTime) < 300000) {
+            try { return JSON.parse(cachedRaw); } catch (_) { /* 快取損壞，繼續呼叫 */ }
+        }
         
         const prompt = this.prompts[type]?.replace('{{input}}', input) || input;
         
         try {
+            let result;
             switch (this.config.provider) {
                 case 'gemini':
-                    return await this.callGemini(prompt, options);
+                    result = await this.callGemini(prompt, options);
+                    break;
                 case 'openai':
-                    return await this.callOpenAI(prompt, options);
+                    result = await this.callOpenAI(prompt, options);
+                    break;
                 case 'claude':
-                    return await this.callClaude(prompt, options);
+                    result = await this.callClaude(prompt, options);
+                    break;
                 case 'custom':
-                    return await this.callCustom(prompt, options);
+                    result = await this.callCustom(prompt, options);
+                    break;
                 default:
-                    return this.mockCall(type, input, options);
+                    result = this.mockCall(type, input, options);
             }
+            // 寫入快取
+            localStorage.setItem(cacheKey, JSON.stringify(result));
+            localStorage.setItem(cacheKey + '_time', String(now));
+            return result;
         } catch (err) {
             console.error('LLM 呼叫失敗:', err);
             // 失敗時回退 Mock
